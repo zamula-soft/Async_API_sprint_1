@@ -1,0 +1,39 @@
+version: '3'
+
+services:
+    app:
+        build: .
+        command: uvicorn main:app --host 0.0.0.0 --port 8000
+        environment:
+            - REDIS_HOST=redis
+            - ELASTIC_HOST=es
+        ports:
+            - "8000:8000"
+        volumes:
+            - "./:/app"
+        depends_on:
+            - es
+            - redis
+    es:
+        image: docker.io/elastic/elasticsearch:7.7.0
+        env_file:
+            - .env
+        environment:
+            - discovery.type=single-node
+        volumes:
+            - esdata01:/usr/share/elasticsearch/data
+        ports:
+            - ${ELASTIC_PORT}:9200
+        deploy:
+            resources:
+                limits:
+                    memory: ${ELASTIC_MEM_LIMIT}
+    redis:
+        image: redis:7-alpine
+        env_file:
+            - .env
+        ports:
+            - ${REDIS_PORT}:6379
+
+volumes:
+    esdata01:
