@@ -34,7 +34,7 @@ async def film_list(
     sort: str = Query('', description='Sorting fields (A comma-separated list '
                                       'of "field":"direction(=asc|desc)" '
                                       'pairs. Example: imdb_rating:desc)'),
-    genre: str = Query(None, description='Filter by genre. For example: sci-fi'),
+    genre: str = Query(None, description='Filter by genre uuid'),
     film_service: FilmService = Depends(get_film_service)
 ) -> List[FilmListAPI]:
     films = await film_service.all(page_size=page_size, page=page, sort=sort, genre=genre)
