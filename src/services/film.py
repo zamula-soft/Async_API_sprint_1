@@ -1,12 +1,11 @@
 from functools import lru_cache
-from typing import Optional
+from typing import List, Optional
 
 from aioredis import Redis
 from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from loguru import logger
 
-from src.core.config import settings
 from src.db.elastic import get_elastic
 from src.db.redis import get_redis
 from src.models.film import Film
@@ -19,9 +18,49 @@ class FilmService:
         self.redis = redis
         self.elastic = elastic
 
+    async def all(self, **kwargs) -> Optional[List[Film]]:
+        page_size = kwargs.get('page_size', 10)
+        page = kwargs.get('page', 1)
+        sort = kwargs.get('sort', '')
+        genre = kwargs.get('genre', None)
+        query = kwargs.get('query', None)
+        body = None
+        if genre:
+            body = {
+                'query': {
+                    'query_string': {
+                        'default_field': 'genre',
+                        'query': genre
+                    }
+                }
+            }
+        if query:
+            body = {
+                'query': {
+                    'match': {
+                        'title': {
+                            'query': query,
+                            'fuzziness': 1,
+                            'operator': 'and'
+                        }
+                    }
+                }
+            }
+        try:
+            docs = await self.elastic.search(index='movies',
+                                             body=body,
+                                             params={
+                                                 'size': page_size,
+                                                 'from': page - 1,
+                                                 'sort': sort,
+                                             })
+        except NotFoundError:
+            logger.debug('An error occurred while trying to get films in ES)')
+            return None
+
+        return [await FilmService._make_film_from_es_doc(doc) for doc in docs['hits']['hits']]
+
     async def get_by_id(self, film_id: str) -> Optional[Film]:
-        logger.debug(f'REDIS_HOST = {settings.REDIS_HOST}')
-        logger.debug(f'ELASTIC_HOST = {settings.ELASTIC_HOST}')
         film = await self._film_from_cache(film_id)
         if not film:
             film = await self._get_film_from_elastic(film_id)
@@ -29,6 +68,14 @@ class FilmService:
                 return None
             await self._put_film_to_cache(film)
 
+        return film
+
+    @staticmethod
+    async def _make_film_from_es_doc(doc: dict) -> Film:
+        genre = doc['_source'].get('genre')
+        if genre and isinstance(genre, str):
+            doc['_source']['genre'] = [{'id': item, 'name': item} for item in genre.split(' ')]
+        film = Film(id=doc['_id'], **doc['_source'])
         return film
 
     async def _get_film_from_elastic(self, film_id: str) -> Optional[Film]:
