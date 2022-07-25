@@ -12,6 +12,11 @@ PG_SQL_GENRES = """SELECT
    g.name
 FROM content.genre g;
 """
+PG_SQL_PERSONS = """SELECT
+   p.id,
+   p.full_name
+FROM ccontent.person p;
+"""
 
 
 def connect(settings):
@@ -38,9 +43,19 @@ class PostgresExtractor:
         str_state = {'state': state.get_state('modified')}
         return str_state
 
-    def get_batches(self, batch_size):
+    def get_batches_genres(self, batch_size):
         with self.cursor as cursor:
             stmt = sql.SQL(PG_SQL_GENRES)
+            cursor.execute(stmt, self.get_state())
+            while True:
+                records = cursor.fetchmany(batch_size)
+                if not records:
+                    break
+                yield list(records)
+
+    def get_batches_persons(self, batch_size):
+        with self.cursor as cursor:
+            stmt = sql.SQL(PG_SQL_PERSONS)
             cursor.execute(stmt, self.get_state())
             while True:
                 records = cursor.fetchmany(batch_size)
