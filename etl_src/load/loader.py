@@ -16,9 +16,9 @@ class Service:
         self.redis = redis
         self.elastic = elastic
 
-    def load_data(self, transformed_data, chunk_size):
-        if not self.elastic.indices.exists(index='genres'):
-            create_index(self.elastic, 'genres')
+    def load_data(self, transformed_data, chunk_size, index_name):
+        if not self.elastic.indices.exists(index=index_name):
+            create_index(self.elastic, index_name)
         streaming_bulk(self.elastic, 'update', transformed_data, chunk_size, ignore=400, raise_on_error=True)
         try:
             bulks_processed = 0
@@ -39,13 +39,14 @@ class Service:
                     not_ok = []
             logger.info(
                 f"Refreshing index {self.elastic.es_index_name} to make indexed documents searchable.")
-            self.elastic.indices.refresh(index='movies')
+            self.elastic.indices.refresh(index=index_name)
         except:
             logger.info(
                 f"Error when bulking: {Exception}")
             backoff(self.load_data(transformed_data, chunk_size))
         else:
             return cnt + 1
+
 
 @lru_cache()
 def get_service(
@@ -56,6 +57,11 @@ def get_service(
 
 
 def create_index(client, index_name):
+    func_name = 'create_index_' + index_name
+    eval(func_name(client, index_name))
+
+
+def create_index_genres(client, index_name):
     created = False
     settings = {
         "settings": {
@@ -130,3 +136,76 @@ def create_index(client, index_name):
         return created
 
 
+def create_index_persons(client, index_name):
+    created = False
+    settings = {
+        "settings": {
+            "refresh_interval": "1s",
+            "analysis":
+                {
+                    "filter": {
+                        "english_stop": {
+                            "type": "stop",
+                            "stopwords": "_english_"
+                        },
+                        "english_stemmer": {
+                            "type": "stemmer",
+                            "language": "english"
+                        },
+                        "english_possessive_stemmer": {
+                            "type": "stemmer",
+                            "language": "possessive_english"
+                        },
+                        "russian_stop": {
+                            "type": "stop",
+                            "stopwords": "_russian_"
+                        },
+                        "russian_stemmer": {
+                            "type": "stemmer",
+                            "language": "russian"
+                        }
+                    },
+                    "analyzer": {
+                        "ru_en": {
+                            "tokenizer": "standard",
+                            "filter": [
+                                "lowercase",
+                                "english_stop",
+                                "english_stemmer",
+                                "english_possessive_stemmer",
+                                "russian_stop",
+                                "russian_stemmer"
+                            ]
+                        }
+                    }
+                },
+
+            "mappings": {
+                "dynamic": "strict",
+                "properties": {
+                    "id": {
+                        "type": "keyword"
+                    },
+                    "full_name": {
+                        "type": "text",
+                        "analyzer": "ru_en",
+                        "fields": {
+                            "raw": {
+                                "type": "keyword"
+                            }
+                        }
+                    },
+                }
+            }
+        }
+    }
+    try:
+        if not client.indices.exists(index_name):
+            # Ignore 400 means to ignore "Index Already Exist" error.
+            client.indices.create(index=index_name, ignore=400, body=settings)
+            print('Created Index')
+        created = True
+    except Exception as ex:
+        print(str(ex))
+    finally:
+        return created
