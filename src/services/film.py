@@ -8,6 +8,7 @@ from elasticsearch import AsyncElasticsearch, NotFoundError
 from fastapi import Depends
 from loguru import logger
 
+from services.utils import get_key_by_args
 from src.db.elastic import get_elastic
 from src.db.redis import get_redis
 from src.models.film import Film
@@ -38,10 +39,6 @@ class FilmService:
             await self._put_film_to_cache(film)
 
         return film
-
-    @staticmethod
-    async def _make_cache_key(*args, **kwargs) -> str:
-        return f'{args}:{json.dumps({"kwargs": kwargs}, sort_keys=True)}'
 
     @staticmethod
     async def _make_film_from_es_doc(doc: dict) -> Film:
@@ -115,7 +112,7 @@ class FilmService:
         return film
 
     async def _films_from_cache(self, **kwargs) -> Optional[list[Film]]:
-        key = await FilmService._make_cache_key(**kwargs)
+        key = await get_key_by_args(**kwargs)
         data = await self.redis.get(key)
         if not data:
             logger.debug('Films was not found in the cache')
@@ -127,7 +124,7 @@ class FilmService:
         await self.redis.set(film.uuid, film.json(by_alias=True), ex=FILM_CACHE_EXPIRE_IN_SECONDS)
 
     async def _put_films_to_cache(self, films: list[Film], **search_params):
-        key = await FilmService._make_cache_key(**search_params)
+        key = await get_key_by_args(**search_params)
         await self.redis.set(key,
                              orjson.dumps([film.json(by_alias=True) for film in films]),
                              ex=FILM_CACHE_EXPIRE_IN_SECONDS)
