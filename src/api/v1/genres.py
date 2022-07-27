@@ -25,9 +25,13 @@ async def genre_list(
     sort: str = Query('', description='Sorting fields (A comma-separated list '
                                       'of "field":"direction(=asc|desc)" '
                                       'pairs. Example: name:desc)'),
-    genre: str = Query(None, description='Filter by genre uuid'), # may be delete
+    genre: str = Query(None, description='Filter by genre uuid'),
     genre_service: GenreService = Depends(get_genre_service)
 ) -> List[GenreListAPI]:
+    """
+    Returns list of genres by the parameters specified in the query.
+    Each element of the list is a dict of the GenreListAPI structure.
+    """
     genres = await genre_service.all(page_size=page_size, page=page, sort=sort, genre=genre)
     return [GenreListAPI.parse_obj(genre.dict(by_alias=True)) for genre in genres]
 
@@ -42,12 +46,23 @@ async def genre_search(
     query: str = Query(None, description='Part of the name (Example: comed )'),
     genre_service: GenreService = Depends(get_genre_service)
 ) -> List[GenreListAPI]:
+    """
+    Returns list of genres by the parameters specified in the query.
+    Each element of the list is a dict of the GenreListAPI structure.
+
+    Unlike the /films/ endpoint, it contains the "query" parameter.
+
+    Parameter **query**: part of genre's name.
+    """
     genres = await genre_service.all(page_size=page_size, page=page, sort=sort, query=query)
     return [GenreListAPI.parse_obj(genre.dict(by_alias=True)) for genre in genres]
 
 
 @router.get('/{genre_id}', response_model=GenreAPI)
 async def genre_details(genre_id: str, genre_service: GenreService = Depends(get_genre_service)) -> GenreAPI:
+    """
+    Returns the dict with all information about the genre by ID.
+    """
     genre = await genre_service.get_by_id(genre_id)
     if not genre:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='genre not found')

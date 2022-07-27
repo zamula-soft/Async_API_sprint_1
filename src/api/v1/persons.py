@@ -25,9 +25,13 @@ async def person_list(
     sort: str = Query('', description='Sorting fields (A comma-separated list '
                                       'of "field":"direction(=asc|desc)" '
                                       'pairs. Example: name:desc)'),
-    genre: str = Query(None, description='Filter by genre uuid'), # may be delete
+    genre: str = Query(None, description='Filter by genre uuid'),
     person_service: PersonService = Depends(get_person_service)
 ) -> List[PersonListAPI]:
+    """
+    Returns list of persons by the parameters specified in the query.
+    Each element of the list is a dict of the PersonListAPI structure.
+    """
     persons = await person_service.all(page_size=page_size, page=page, sort=sort, genre=genre)
     return [PersonListAPI.parse_obj(person.dict(by_alias=True)) for person in persons]
 
@@ -42,12 +46,24 @@ async def person_search(
     query: str = Query(None, description='Part of the full-name (Example: Jame )'),
     person_service: PersonService = Depends(get_person_service)
 ) -> List[PersonListAPI]:
+    """
+    Returns list of persons by the parameters specified in the query.
+    Each element of the list is a dict of the PersonListAPI structure.
+
+    Unlike the /films/ endpoint, it contains the "query" parameter.
+
+    Parameter **query**: part of person's full-name.
+    """
     persons = await person_service.all(page_size=page_size, page=page, sort=sort, query=query)
     return [PersonListAPI.parse_obj(person.dict(by_alias=True)) for person in persons]
 
 
 @router.get('/{person_id}', response_model=PersonAPI)
-async def person_details(person_id: str, person_service: PersonService = Depends(get_person_service)) -> PersonAPI:
+async def person_details(person_id: str,
+                         person_service: PersonService = Depends(get_person_service)) -> PersonAPI:
+    """
+    Returns the dict with all information about the person by ID.
+    """
     person = await person_service.get_by_id(person_id)
     if not person:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail='Person not found')

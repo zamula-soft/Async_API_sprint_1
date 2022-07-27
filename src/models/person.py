@@ -1,6 +1,6 @@
 from pydantic import Field
 
-from src.models.mixins import UUIDMixin, OrjsonConfigMixin
+from src.models.mixins import OrjsonConfigMixin, UUIDMixin
 
 
 class Person(UUIDMixin, OrjsonConfigMixin):

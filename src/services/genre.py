@@ -1,4 +1,3 @@
-import json
 from functools import lru_cache
 from typing import List, Optional
 
@@ -11,6 +10,7 @@ from loguru import logger
 from src.db.elastic import get_elastic
 from src.db.redis import get_redis
 from src.models.genre import Genre
+from src.services.utils import get_key_by_args
 
 GENRE_CACHE_EXPIRE_IN_SECONDS = 60 * 5
 
@@ -38,10 +38,6 @@ class GenreService:
             await self._put_genre_to_cache(genre)
 
         return genre
-
-    @staticmethod
-    async def _make_cache_key(*args, **kwargs) -> str:
-        return f'{args}:{json.dumps({"kwargs": kwargs}, sort_keys=True)}'
 
     @staticmethod
     async def _make_genre_from_es_doc(doc: dict) -> Genre:
@@ -115,7 +111,7 @@ class GenreService:
         return genre
 
     async def _genres_from_cache(self, **kwargs) -> Optional[List[Genre]]:
-        key = await GenreService._make_cache_key(**kwargs)
+        key = await get_key_by_args(**kwargs)
         data = await self.redis.get(key)
         if not data:
             logger.debug('Genres was not found in the cache')
@@ -127,7 +123,7 @@ class GenreService:
         await self.redis.set(genre.uuid, genre.json(by_alias=True), ex=GENRE_CACHE_EXPIRE_IN_SECONDS)
 
     async def _put_genres_to_cache(self, genres: List[Genre], **search_params):
-        key = await GenreService._make_cache_key(**search_params)
+        key = await get_key_by_args(**search_params)
         await self.redis.set(key,
                              orjson.dumps([genre.json(by_alias=True) for genre in genres]),
                              ex=GENRE_CACHE_EXPIRE_IN_SECONDS)

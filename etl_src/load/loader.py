@@ -1,17 +1,21 @@
-from elasticsearch import Elasticsearch
-from elasticsearch import AsyncElasticsearch, NotFoundError
-from elasticsearch.helpers import streaming_bulk
-from etl_src.backoff.backoff import backoff
-
 from functools import lru_cache
+
+from aioredis import Redis
+from elasticsearch import AsyncElasticsearch
+from elasticsearch.helpers import streaming_bulk
 from fastapi import Depends
 from loguru import logger
-from aioredis import Redis
+
+from etl_src.backoff.backoff import backoff
 from src.db.elastic import get_elastic
 from src.db.redis import get_redis
 
 
 class Service:
+    """
+    Class to load data into Elasticsearch, to create and update indices
+    """
+
     def __init__(self, redis: Redis, elastic: AsyncElasticsearch):
         self.redis = redis
         self.elastic = elastic
@@ -32,17 +36,17 @@ class Service:
                 if cnt % chunk_size == 0:
                     bulks_processed += 1
                 logger.debug(
-                    f"Bulk number {bulks_processed} processed, already processed docs {cnt}.")
+                    f'Bulk number {bulks_processed} processed, already processed docs {cnt}.')
                 if len(not_ok):
                     logger.error(
-                        f"NOK DOCUMENTS (log limited to 10) in batch {bulks_processed}: {not_ok[-10:]}")
+                        f'NOK DOCUMENTS (log limited to 10) in batch {bulks_processed}: {not_ok[-10:]}')
                     not_ok = []
             logger.info(
-                f"Refreshing index {self.elastic.es_index_name} to make indexed documents searchable.")
+                f'Refreshing index {self.elastic.es_index_name} to make indexed documents searchable.')
             self.elastic.indices.refresh(index=index_name)
-        except:
+        except Exception as e:
             logger.info(
-                f"Error when bulking: {Exception}")
+                f'Error when bulking: {e}')
             backoff(self.load_data(transformed_data, chunk_size))
         else:
             return cnt + 1
@@ -64,64 +68,65 @@ def create_index(client, index_name):
 def create_index_genres(client, index_name):
     created = False
     settings = {
-        "settings": {
-            "refresh_interval": "1s",
-            "analysis":
+        'settings': {
+            'refresh_interval': '1s',
+            'analysis':
                 {
-                    "filter": {
-                        "english_stop": {
-                            "type": "stop",
-                            "stopwords": "_english_"
+                    'filter': {
+                        'english_stop': {
+                            'type': 'stop',
+                            'stopwords': '_english_'
                         },
-                        "english_stemmer": {
-                            "type": "stemmer",
-                            "language": "english"
+                        'english_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'english'
                         },
-                        "english_possessive_stemmer": {
-                            "type": "stemmer",
-                            "language": "possessive_english"
+                        'english_possessive_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'possessive_english'
                         },
-                        "russian_stop": {
-                            "type": "stop",
-                            "stopwords": "_russian_"
+                        'russian_stop': {
+                            'type': 'stop',
+                            'stopwords': '_russian_'
                         },
-                        "russian_stemmer": {
-                            "type": "stemmer",
-                            "language": "russian"
+                        'russian_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'russian'
                         }
                     },
-                    "analyzer": {
-                        "ru_en": {
-                            "tokenizer": "standard",
-                            "filter": [
-                                "lowercase",
-                                "english_stop",
-                                "english_stemmer",
-                                "english_possessive_stemmer",
-                                "russian_stop",
-                                "russian_stemmer"
+                    'analyzer': {
+                        'ru_en': {
+                            'tokenizer': 'standard',
+                            'filter': [
+                                'lowercase',
+                                'english_stop',
+                                'english_stemmer',
+                                'english_possessive_stemmer',
+                                'russian_stop',
+                                'russian_stemmer'
                             ]
                         }
                     }
                 },
 
-            "mappings": {
-                "dynamic": "strict",
-                "properties": {
-                    "id": {
-                        "type": "keyword"
-                    },
-                    "name": {
-                        "type": "text",
-                        "analyzer": "ru_en",
-                        "fields": {
-                            "raw": {
-                                "type": "keyword"
+            'mappings':
+                {
+                    'dynamic': 'strict',
+                    'properties': {
+                        'id': {
+                            'type': 'keyword'
+                        },
+                        'name': {
+                            'type': 'text',
+                            'analyzer': 'ru_en',
+                            'fields': {
+                                'raw': {
+                                    'type': 'keyword'
+                                }
                             }
-                        }
-                    },
+                        },
+                    }
                 }
-            }
         }
     }
     try:
@@ -139,63 +144,64 @@ def create_index_genres(client, index_name):
 def create_index_persons(client, index_name):
     created = False
     settings = {
-        "settings": {
-            "refresh_interval": "1s",
-            "analysis":
+        'settings': {
+            'refresh_interval': '1s',
+            'analysis':
                 {
-                    "filter": {
-                        "english_stop": {
-                            "type": "stop",
-                            "stopwords": "_english_"
+                    'filter': {
+                        'english_stop': {
+                            'type': 'stop',
+                            'stopwords': '_english_'
                         },
-                        "english_stemmer": {
-                            "type": "stemmer",
-                            "language": "english"
+                        'english_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'english'
                         },
-                        "english_possessive_stemmer": {
-                            "type": "stemmer",
-                            "language": "possessive_english"
+                        'english_possessive_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'possessive_english'
                         },
-                        "russian_stop": {
-                            "type": "stop",
-                            "stopwords": "_russian_"
+                        'russian_stop': {
+                            'type': 'stop',
+                            'stopwords': '_russian_'
                         },
-                        "russian_stemmer": {
-                            "type": "stemmer",
-                            "language": "russian"
+                        'russian_stemmer': {
+                            'type': 'stemmer',
+                            'language': 'russian'
                         }
                     },
-                    "analyzer": {
-                        "ru_en": {
-                            "tokenizer": "standard",
-                            "filter": [
-                                "lowercase",
-                                "english_stop",
-                                "english_stemmer",
-                                "english_possessive_stemmer",
-                                "russian_stop",
-                                "russian_stemmer"
+                    'analyzer': {
+                        'ru_en': {
+                            'tokenizer': 'standard',
+                            'filter': [
+                                'lowercase',
+                                'english_stop',
+                                'english_stemmer',
+                                'english_possessive_stemmer',
+                                'russian_stop',
+                                'russian_stemmer'
                             ]
                         }
                     }
                 },
 
-            "mappings": {
-                "dynamic": "strict",
-                "properties": {
-                    "id": {
-                        "type": "keyword"
-                    },
-                    "full_name": {
-                        "type": "text",
-                        "analyzer": "ru_en",
-                        "fields": {
-                            "raw": {
-                                "type": "keyword"
+            'mappings': {
+                'dynamic': 'strict',
+                'properties':
+                    {
+                        'id': {
+                            'type': 'keyword'
+                        },
+                        'full_name': {
+                            'type': 'text',
+                            'analyzer': 'ru_en',
+                            'fields': {
+                                'raw': {
+                                    'type': 'keyword'
+                                }
                             }
-                        }
-                    },
-                }
+                        },
+                    }
             }
         }
     }

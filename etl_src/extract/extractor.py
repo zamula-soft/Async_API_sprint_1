@@ -1,20 +1,21 @@
-from loguru import logger
-from contextlib import closing
 import psycopg2
+from loguru import logger
 from psycopg2 import sql
 from psycopg2.extras import DictCursor
 
-from postgres_to_es.config.settings import Settings
-from postgres_to_es.state.state import State, JsonFileStorage
+from etl_src.config.settings import Settings
+from etl_src.state.state import JsonFileStorage, State
 
 PG_SQL_GENRES = """SELECT
    g.id,
-   g.name
+   g.name,
+   g.updated_by
 FROM content.genre g;
 """
 PG_SQL_PERSONS = """SELECT
    p.id,
-   p.full_name
+   p.full_name,
+   p.updated_by
 FROM ccontent.person p;
 """
 
@@ -31,6 +32,10 @@ def connect(settings):
 
 
 class PostgresExtractor:
+    """
+    Class to connect and work with PostgresQL to extract data (genre and person) due to query and to return
+    batches with extracted data
+    """
     def __init__(self):
         settings = Settings()
         pg_conn = connect(settings)

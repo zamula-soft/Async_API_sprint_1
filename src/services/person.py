@@ -1,4 +1,3 @@
-import json
 from functools import lru_cache
 from typing import List, Optional
 
@@ -11,6 +10,7 @@ from loguru import logger
 from src.db.elastic import get_elastic
 from src.db.redis import get_redis
 from src.models.person import Person
+from src.services.utils import get_key_by_args
 
 PERSON_CACHE_EXPIRE_IN_SECONDS = 60 * 5
 
@@ -38,10 +38,6 @@ class PersonService:
             await self._put_person_to_cache(person)
 
         return person
-
-    @staticmethod
-    async def _make_cache_key(*args, **kwargs) -> str:
-        return f'{args}:{json.dumps({"kwargs": kwargs}, sort_keys=True)}'
 
     @staticmethod
     async def _make_person_from_es_doc(doc: dict) -> Person:
@@ -113,7 +109,7 @@ class PersonService:
         return Person.parse_raw(data)
 
     async def _persons_from_cache(self, **kwargs) -> Optional[List[Person]]:
-        key = await PersonService._make_cache_key(**kwargs)
+        key = await get_key_by_args(**kwargs)
         data = await self.redis.get(key)
         if not data:
             logger.debug('Persons was not found in the cache')
@@ -125,7 +121,7 @@ class PersonService:
         await self.redis.set(person.uuid, person.json(by_alias=True), ex=PERSON_CACHE_EXPIRE_IN_SECONDS)
 
     async def _put_persons_to_cache(self, persons: List[Person], **search_params):
-        key = await PersonService._make_cache_key(**search_params)
+        key = await get_key_by_args(**search_params)
         await self.redis.set(key,
                              orjson.dumps([person.json(by_alias=True) for person in persons]),
                              ex=PERSON_CACHE_EXPIRE_IN_SECONDS)
