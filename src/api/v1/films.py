@@ -1,5 +1,4 @@
 from http import HTTPStatus
-from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -14,20 +13,20 @@ router = APIRouter()
 class FilmListAPI(UUIDMixin, BaseModel):
     title: str
     imdb_rating: float
-    genre: List[Genre]
+    genre: list[Genre]
 
 
 class FilmAPI(UUIDMixin, BaseModel):
     title: str
     imdb_rating: float
     description: str
-    genre: List[Genre]
-    actors: List[Person]
-    writers: List[Person]
-    directors: List[Person]
+    genre: list[Genre]
+    actors: list[Person]
+    writers: list[Person]
+    directors: list[Person]
 
 
-@router.get('/', response_model=List[FilmListAPI])
+@router.get('/', response_model=list[FilmListAPI])
 async def film_list(
     page_size: int = Query(10, description='Number of films on page'),
     page: int = Query(1, description='Page number'),
@@ -36,12 +35,12 @@ async def film_list(
                                       'pairs. Example: imdb_rating:desc)'),
     genre: str = Query(None, description='Filter by genre uuid'),
     film_service: FilmService = Depends(get_film_service)
-) -> List[FilmListAPI]:
+) -> list[FilmListAPI]:
     films = await film_service.all(page_size=page_size, page=page, sort=sort, genre=genre)
     return [FilmListAPI.parse_obj(film.dict(by_alias=True)) for film in films]
 
 
-@router.get('/search', response_model=List[FilmListAPI])
+@router.get('/search', response_model=list[FilmListAPI])
 async def film_search(
     page_size: int = Query(10, description='Number of films on page'),
     page: int = Query(1, description='Page number'),
@@ -50,7 +49,7 @@ async def film_search(
                                       'pairs. Example: imdb_rating:desc)'),
     query: str = Query(None, description='Part of the movie title (Example: dark sta )'),
     film_service: FilmService = Depends(get_film_service)
-) -> List[FilmListAPI]:
+) -> list[FilmListAPI]:
     films = await film_service.all(page_size=page_size, page=page, sort=sort, query=query)
     return [FilmListAPI.parse_obj(film.dict(by_alias=True)) for film in films]
 

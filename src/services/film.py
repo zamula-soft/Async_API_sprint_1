@@ -1,6 +1,6 @@
 import json
 from functools import lru_cache
-from typing import List, Optional
+from typing import Optional
 
 import orjson
 from aioredis import Redis
@@ -20,7 +20,7 @@ class FilmService:
         self.redis = redis
         self.elastic = elastic
 
-    async def all(self, **kwargs) -> List[Optional[Film]]:
+    async def all(self, **kwargs) -> list[Optional[Film]]:
         films = await self._films_from_cache(**kwargs)
         if not films:
             films = await self._get_films_from_elastic(**kwargs)
@@ -62,7 +62,7 @@ class FilmService:
             doc['_source']['genre'] = [{'id': item, 'name': item} for item in genre.split(' ')]
         return Film(id=doc['_id'], **doc['_source'])
 
-    async def _get_films_from_elastic(self, **kwargs) -> Optional[List[Film]]:
+    async def _get_films_from_elastic(self, **kwargs) -> Optional[list[Film]]:
         page_size = kwargs.get('page_size', 10)
         page = kwargs.get('page', 1)
         sort = kwargs.get('sort', '')
@@ -114,7 +114,7 @@ class FilmService:
 
         return film
 
-    async def _films_from_cache(self, **kwargs) -> Optional[List[Film]]:
+    async def _films_from_cache(self, **kwargs) -> Optional[list[Film]]:
         key = await FilmService._make_cache_key(**kwargs)
         data = await self.redis.get(key)
         if not data:
@@ -126,7 +126,7 @@ class FilmService:
     async def _put_film_to_cache(self, film: Film):
         await self.redis.set(film.uuid, film.json(by_alias=True), ex=FILM_CACHE_EXPIRE_IN_SECONDS)
 
-    async def _put_films_to_cache(self, films: List[Film], **search_params):
+    async def _put_films_to_cache(self, films: list[Film], **search_params):
         key = await FilmService._make_cache_key(**search_params)
         await self.redis.set(key,
                              orjson.dumps([film.json(by_alias=True) for film in films]),
