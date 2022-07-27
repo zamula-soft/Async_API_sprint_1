@@ -5,12 +5,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 ARG HOME_DIR=/app
 
 WORKDIR $HOME_DIR
-
+COPY ./src ./src
 EXPOSE 8000
 
 COPY requirements.txt requirements.txt
 
 RUN apk update \
     && apk add build-base \
-    && pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && pip install --upgrade pip \
+    && pip install -r requirements.txt
