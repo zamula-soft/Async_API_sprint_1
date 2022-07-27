@@ -9,8 +9,6 @@ services:
             - ELASTIC_HOST=es
         ports:
             - "8000:8000"
-#        volumes:
-#            - "./:/app"
         depends_on:
             - es
             - redis
